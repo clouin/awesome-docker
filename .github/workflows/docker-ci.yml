@@ -14,11 +14,12 @@ on:
       platforms:
         description: 'Docker build platforms'
         required: true
-        default: 'linux/amd64,linux/arm64'
+        default: 'linux/amd64, linux/arm64'
 
 env:
   FILE_PATH: ${{ github.event.inputs.repository }}
   REPOSITORY: ${{ github.event.inputs.repository }}
+  TAG: ${{ github.event.inputs.tag }}
   VERSION: ${{ github.event.inputs.tag }}
   PLATFORMS: ${{ github.event.inputs.platforms }}
 
@@ -43,16 +44,26 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
+      - name: Login to Aliyun Container Registry
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ secrets.ALIYUN_REGISTRY }}
+          username: ${{ secrets.ALIYUN_USERNAME }}
+          password: ${{ secrets.ALIYUN_PASSWORD }}
+
       - name: Build and push
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: ${{ env.FILE_PATH }}
           file: ${{ env.FILE_PATH }}/Dockerfile
           platforms: ${{ env.PLATFORMS }}
           push: ${{ github.event_name != 'pull_request' }}
           tags: |
-            ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.REPOSITORY }}:${{ env.VERSION }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.REPOSITORY }}:${{ env.TAG }}
             ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.REPOSITORY }}:latest
+            ${{ secrets.ALIYUN_REGISTRY }}/${{ secrets.ALIYUN_NAMESPACE }}/${{ env.REPOSITORY }}:${{ env.TAG }}
+            ${{ secrets.ALIYUN_REGISTRY }}/${{ secrets.ALIYUN_NAMESPACE }}/${{ env.REPOSITORY }}:latest
           build-args: |
             VERSION=${{ env.VERSION }}
 
