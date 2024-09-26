@@ -1,6 +1,18 @@
 #!/bin/bash
 
 (
+  # Configure tunnel protocol if specified
+  if [[ "$TUNNEL_PROTOCOL" == "MASQUE" ]]; then
+    cat <<EOF >/var/lib/cloudflare-warp/mdm.xml
+<dict>
+    <key>warp_tunnel_protocol</key>
+    <string>masque</string>
+</dict>
+EOF
+  else
+    rm -rf /var/lib/cloudflare-warp/mdm.xml
+  fi
+
   sleep 5
 
   # Check if warp-svc is running before proceeding
@@ -22,18 +34,6 @@
   # Set license key if provided
   if [[ -n "$WARP_LICENSE" ]]; then
     warp-cli --accept-tos registration license "${WARP_LICENSE}"
-  fi
-
-  # Configure tunnel protocol if specified
-  if [[ "$TUNNEL_PROTOCOL" == "MASQUE" ]]; then
-    cat <<EOF >/var/lib/cloudflare-warp/mdm.xml
-<dict>
-    <key>warp_tunnel_protocol</key>
-    <string>masque</string>
-</dict>
-EOF
-  else
-    rm -rf /var/lib/cloudflare-warp/mdm.xml
   fi
 
   # Connect to WARP
