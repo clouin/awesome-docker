@@ -8,6 +8,7 @@ The SOCKS proxy is exposed on port `1080`.
 You can use the following environment variables:
 
 - `FAMILIES_MODE`: Optional values are `off`, `malware`, and `full`. (Default: `off`)
+- `TUNNEL_PROTOCOL`: Optional values are `WireGuard`, and `MASQUE`. (Default: `WireGuard`)
 - `WARP_LICENSE`: Enter your WARP+ license key. (You can get a free WARP+ license from this Telegram bot: [https://t.me/generatewarpplusbot](https://t.me/generatewarpplusbot))
 
 ### Running

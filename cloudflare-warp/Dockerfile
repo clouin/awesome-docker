@@ -20,10 +20,11 @@ RUN apt-get update && \
 COPY --chmod=755 entrypoint.sh /usr/local/bin/
 
 # Set environment variables for WARP
-ENV WARP_LICENSE=
-ENV FAMILIES_MODE=off
+ENV WARP_LICENSE=""
+ENV FAMILIES_MODE="off"
+ENV TUNNEL_PROTOCOL="WireGuard"
 
-# Expose port 1080 for TCP traffic
+# Expose port 1080 for SOCKS5 proxy traffic
 EXPOSE 1080/tcp
 
 # Define a mount point for Cloudflare WARP data
