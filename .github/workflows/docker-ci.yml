@@ -3,6 +3,10 @@ name: Docker CI
 on:
   workflow_dispatch:
     inputs:
+      file_path:
+        description: 'Path to Dockerfile directory'
+        required: true
+        default: ''
       repository:
         description: 'Docker repository name'
         required: true
@@ -17,7 +21,7 @@ on:
         default: 'linux/amd64, linux/arm64'
 
 env:
-  FILE_PATH: ${{ github.event.inputs.repository }}
+  FILE_PATH: ${{ github.event.inputs.file_path }}
   REPOSITORY: ${{ github.event.inputs.repository }}
   TAG: ${{ github.event.inputs.tag }}
   VERSION: ${{ github.event.inputs.tag }}
