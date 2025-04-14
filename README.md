@@ -12,6 +12,7 @@ Welcome to the **Awesome Docker** project! This repository contains a collection
 | [xray][xray]                       | `linux/amd64`, `linux/arm64`, `linux/ppc64le`, `linux/s390x`, `linux/386`, `linux/arm/v7`, `linux/arm/v6` | [![Docker Pulls][xray-docker-pulls]][xray-docker]                       |
 | [zerotier][zerotier]               | `linux/amd64`, `linux/arm64`                                                                              | [![Docker Pulls][zerotier-docker-pulls]][zerotier-docker]               |
 | [zerotier-moon][zerotier-moon]     | `linux/amd64`, `linux/arm64`                                                                              | [![Docker Pulls][zerotier-moon-docker-pulls]][zerotier-moon-docker]     |
+| [fetch-mcp][fetch-mcp]             | `linux/amd64`, `linux/arm64`                                                                              | [![Docker Pulls][fetch-mcp-docker-pulls]][fetch-mcp-docker]             |
 
 ## License
 
@@ -35,4 +36,7 @@ Licensed under the MIT License. See the [LICENSE][license] file for details.
 [zerotier-moon]: ./zerotier-moon/README.md
 [zerotier-moon-docker-pulls]: https://img.shields.io/docker/pulls/jerryin/zerotier-moon
 [zerotier-moon-docker]: https://hub.docker.com/r/jerryin/zerotier-moon
+[fetch-mcp]: ./mcp/fetch/README.md
+[fetch-mcp-docker-pulls]: https://img.shields.io/docker/pulls/jerryin/fetch-mcp
+[fetch-mcp-docker]: https://hub.docker.com/r/jerryin/fetch-mcp
 [license]: ./LICENSE
