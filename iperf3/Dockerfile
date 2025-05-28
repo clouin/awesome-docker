@@ -1,9 +1,9 @@
-FROM alpine:3.20
+FROM alpine:edge
 
 LABEL maintainer="Jerry"
 
 # Define the version argument
-ARG VERSION
+ARG VERSION=3.18-r0
 
 # Install the specified version of iperf3
 RUN apk add --no-cache iperf3=${VERSION}
