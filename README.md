@@ -8,6 +8,7 @@ Welcome to the **Awesome Docker** project! This repository contains a collection
 | ---------------------------------- | --------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
 | [cloudflare-warp][cloudflare-warp] | `linux/amd64`, `linux/arm64`                                                                              | [![Docker Pulls][cloudflare-warp-docker-pulls]][cloudflare-warp-docker] |
 | [iperf3][iperf3]                   | `linux/amd64`, `linux/arm64`, `linux/riscv64`, `linux/ppc64le`, `linux/s390x`, `linux/arm/v7`             | [![Docker Pulls][iperf3-docker-pulls]][iperf3-docker]                   |
+| [n8n][n8n]                         | `linux/amd64`, `linux/arm64`                                                                              | [![Docker Pulls][n8n-docker-pulls]][n8n-docker]                         |
 | [vlmcsd][vlmcsd]                   | `linux/amd64`, `linux/arm64`, `linux/ppc64le`, `linux/s390x`, `linux/arm/v7`, `linux/arm/v6`, `linux/386` | [![Docker Pulls][vlmcsd-docker-pulls]][vlmcsd-docker]                   |
 | [xray][xray]                       | `linux/amd64`, `linux/arm64`, `linux/ppc64le`, `linux/s390x`, `linux/386`, `linux/arm/v7`, `linux/arm/v6` | [![Docker Pulls][xray-docker-pulls]][xray-docker]                       |
 | [zerotier][zerotier]               | `linux/amd64`, `linux/arm64`                                                                              | [![Docker Pulls][zerotier-docker-pulls]][zerotier-docker]               |
@@ -23,6 +24,9 @@ Licensed under the MIT License. See the [LICENSE][license] file for details.
 [iperf3]: ./iperf3/README.md
 [iperf3-docker-pulls]: https://img.shields.io/docker/pulls/jerryin/iperf3
 [iperf3-docker]: https://hub.docker.com/r/jerryin/iperf3
+[n8n]: ./n8n/README.md
+[n8n-docker-pulls]: https://img.shields.io/docker/pulls/jerryin/n8n
+[n8n-docker]: https://hub.docker.com/r/jerryin/n8n
 [vlmcsd]: ./vlmcsd/README.md
 [vlmcsd-docker-pulls]: https://img.shields.io/docker/pulls/jerryin/vlmcsd
 [vlmcsd-docker]: https://hub.docker.com/r/jerryin/vlmcsd
