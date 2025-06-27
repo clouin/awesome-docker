@@ -1,12 +1,12 @@
-FROM alpine:edge
+FROM alpine:3.22
 
 LABEL maintainer="Jerry"
 
 # Define the version argument
-ARG VERSION=3.18-r0
+ARG VERSION=3.19
 
 # Install the specified version of iperf3
-RUN apk add --no-cache iperf3=${VERSION}
+RUN apk add --no-cache iperf3=${VERSION}-r0
 
 # Expose the iperf3 port
 EXPOSE 5201/tcp
