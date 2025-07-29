@@ -1,0 +1,79 @@
+name: Schedule CI
+
+on:
+  schedule:
+    - cron: '0 */8 * * *'
+  workflow_dispatch: {}
+
+jobs:
+  check-update:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        project:
+          - name: Xray
+          - name: ZeroTier
+          - name: ZeroTier Moon
+          - name: n8n
+          - name: iPerf
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y curl jq skopeo
+          # Install yq from GitHub release (more reliable than apt)
+          sudo curl -L "https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64" -o /usr/bin/yq
+          sudo chmod +x /usr/bin/yq
+
+      - name: Check ${{ matrix.project.name }} latest vs current version
+        id: check
+        run: |
+          chmod +x ./script/check_project_version.sh
+          ./script/check_project_version.sh "${{ matrix.project.name }}" > versions.out
+
+          # Extract output variables
+          LATEST_VERSION=$(grep '^latest_version=' versions.out | cut -d= -f2)
+          UPDATE_NEEDED=$(grep '^update_needed=' versions.out | cut -d= -f2)
+          FILE_PATH=$(grep '^file_path=' versions.out | cut -d= -f2)
+          REPOSITORY=$(grep '^repository=' versions.out | cut -d= -f2)
+          PLATFORMS=$(grep '^platforms=' versions.out | cut -d= -f2)
+
+          echo "latest_version=$LATEST_VERSION" >> $GITHUB_OUTPUT
+          echo "update_needed=$UPDATE_NEEDED" >> $GITHUB_OUTPUT
+          echo "file_path=$FILE_PATH" >> $GITHUB_OUTPUT
+          echo "repository=$REPOSITORY" >> $GITHUB_OUTPUT
+          echo "platforms=$PLATFORMS" >> $GITHUB_OUTPUT
+
+      - name: Trigger ${{ matrix.project.name }} Docker CI workflow via API
+        if: steps.check.outputs.update_needed == 'true'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            await github.rest.actions.createWorkflowDispatch({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'docker-ci.yml',
+              ref: 'main',
+              inputs: {
+                file_path: '${{ steps.check.outputs.file_path }}',
+                repository: '${{ steps.check.outputs.repository }}',
+                tag: '${{ steps.check.outputs.latest_version }}',
+                platforms: '${{ steps.check.outputs.platforms }}'
+              }
+            });
+
+  cleanup:
+    needs: check-update
+    runs-on: ubuntu-latest
+    steps:
+      - name: Delete workflow runs
+        uses: Mattraks/delete-workflow-runs@v2
+        with:
+          retain_days: 1
+          keep_minimum_runs: 6
