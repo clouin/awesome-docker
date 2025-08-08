@@ -2,22 +2,14 @@ name: Schedule CI
 
 on:
   schedule:
-    - cron: '0 */8 * * *'
+    - cron: '0 0,8,16 * * *'
   workflow_dispatch: {}
 
 jobs:
-  check-update:
+  check-updates:
     runs-on: ubuntu-latest
-
-    strategy:
-      matrix:
-        project:
-          - name: Xray
-          - name: ZeroTier
-          - name: ZeroTier Moon
-          - name: n8n
-          - name: iPerf
-
+    outputs:
+      updates_needed: ${{ steps.check.outputs.updates_needed }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -26,31 +18,150 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y curl jq skopeo
-          # Install yq from GitHub release (more reliable than apt)
           sudo curl -L "https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64" -o /usr/bin/yq
           sudo chmod +x /usr/bin/yq
 
-      - name: Check ${{ matrix.project.name }} latest vs current version
+      - name: Check all projects for updates
         id: check
         run: |
-          chmod +x ./script/check_project_version.sh
-          ./script/check_project_version.sh "${{ matrix.project.name }}" > versions.out
+          CONFIG_FILE="config.yaml"
 
-          # Extract output variables
-          LATEST_VERSION=$(grep '^latest_version=' versions.out | cut -d= -f2)
-          UPDATE_NEEDED=$(grep '^update_needed=' versions.out | cut -d= -f2)
-          FILE_PATH=$(grep '^file_path=' versions.out | cut -d= -f2)
-          REPOSITORY=$(grep '^repository=' versions.out | cut -d= -f2)
-          PLATFORMS=$(grep '^platforms=' versions.out | cut -d= -f2)
+          # --- Shell functions (retry_cmd, get_version) ---
+          retry_cmd() {
+            local cmd="$1"
+            local retries=3
+            local wait=2
+            local count=0
+            local result=""
+            while [ $count -lt $retries ]; do
+              if result=$(eval "$cmd" 2>/dev/null); then
+                if [ -n "$result" ] && [ "$result" != "null" ]; then
+                  echo "$result"
+                  return 0
+                fi
+              fi
+              count=$((count + 1))
+              sleep $wait
+            done
+            return 1
+          }
 
-          echo "latest_version=$LATEST_VERSION" >> $GITHUB_OUTPUT
-          echo "update_needed=$UPDATE_NEEDED" >> $GITHUB_OUTPUT
-          echo "file_path=$FILE_PATH" >> $GITHUB_OUTPUT
-          echo "repository=$REPOSITORY" >> $GITHUB_OUTPUT
-          echo "platforms=$PLATFORMS" >> $GITHUB_OUTPUT
+          get_version() {
+            local source_type="$1"
+            local repo="$2"
+            case "$source_type" in
+              "git_tags")
+                git ls-remote --tags --refs "https://github.com/$repo.git" | awk '{print $2}' | sed 's|refs/tags/||' | grep -E '^V?[0-9]+(\.[0-9]+)*$' | sed 's/^[vV]//' | sort -V | tail -n1
+                ;;
+              "github_api")
+                curl -s "https://api.github.com/repos/$repo/releases/latest" | jq -r '.tag_name' | grep -oP '\d+(\.\d+)+' | head -1
+                ;;
+              "docker_hub")
+                curl -s "https://hub.docker.com/v2/repositories/$repo/tags" | jq -r '.results[].name' | grep -oP '^v?\d+\.\d+(\.\d+)?(-[a-z0-9]+)?$' | sed 's/^v//' | sort -V | tail -n 1
+                ;;
+              "acr")
+                skopeo list-tags "docker://$repo" | jq -r '[.Tags[] | select(. != "latest")] | sort_by(. | split(".") | map(tonumber)) | last'
+                ;;
+              *)
+                echo "Unknown source type: $source_type" >&2; return 1
+                ;;
+            esac
+          }
+          # --- End of shell functions ---
 
-      - name: Trigger ${{ matrix.project.name }} Docker CI workflow via API
-        if: steps.check.outputs.update_needed == 'true'
+          UPDATES_JSON="[]"
+
+          while IFS= read -r PROJECT_NAME; do
+            echo "--- Checking project: $PROJECT_NAME ---"
+            PROJECT_CONFIG=$(yq eval -o=json '.projects[] | select(.project_name == "'"$PROJECT_NAME"'")' "$CONFIG_FILE")
+
+            # Extract config
+            REPO_CURRENT=$(echo "$PROJECT_CONFIG" | jq -r '.repo_current')
+            SOURCE_LATEST=$(echo "$PROJECT_CONFIG" | jq -r '.version_source.latest')
+            SOURCE_CURRENT=$(echo "$PROJECT_CONFIG" | jq -r '.version_source.current')
+            VERSION_TYPE=$(echo "$PROJECT_CONFIG" | jq -r '.version_type')
+
+            # Handle different version checking strategies
+            if [ "$VERSION_TYPE" = "multi_repo_match" ]; then
+              if ! echo "$PROJECT_CONFIG" | jq -e '.repo_latest | type == "array"' >/dev/null; then
+                echo "Error: repo_latest must be an array for multi_repo_match in project $PROJECT_NAME"
+                continue # Skip to next project
+              fi
+
+              VERSIONS=()
+              ALL_VERSIONS_FETCHED=true
+              while IFS= read -r repo; do
+                version=$(retry_cmd "get_version \"$SOURCE_LATEST\" \"$repo\"")
+                if [ -z "$version" ]; then
+                  echo "Error: Failed to get version for repo '$repo' in project '$PROJECT_NAME'"
+                  ALL_VERSIONS_FETCHED=false
+                  break
+                fi
+                VERSIONS+=("$version")
+              done < <(echo "$PROJECT_CONFIG" | jq -r '.repo_latest[]')
+
+              if ! $ALL_VERSIONS_FETCHED; then
+                continue # Skip to the next project
+              fi
+
+              # Check if all versions match
+              FIRST_VERSION="${VERSIONS}"
+              ALL_MATCH=true
+              for ver in "${VERSIONS[@]}"; do
+                if [ "$ver" != "$FIRST_VERSION" ]; then
+                  ALL_MATCH=false
+                  break
+                fi
+              done
+
+              if ! $ALL_MATCH; then
+                echo "Warning: Repository versions do not match for $PROJECT_NAME, skipping."
+                continue # Skip to next project
+              fi
+              LATEST_VERSION="$FIRST_VERSION"
+            else
+              # Standard single repository version check
+              REPO_LATEST=$(echo "$PROJECT_CONFIG" | jq -r '.repo_latest')
+              LATEST_VERSION=$(retry_cmd "get_version \"$SOURCE_LATEST\" \"$REPO_LATEST\"")
+            fi
+
+            CURRENT_VERSION=$(retry_cmd "get_version \"$SOURCE_CURRENT\" \"$REPO_CURRENT\"")
+
+            echo "Latest version: $LATEST_VERSION"
+            echo "Current version: $CURRENT_VERSION"
+
+            if [ -n "$LATEST_VERSION" ] && [ -n "$CURRENT_VERSION" ] && [ "$CURRENT_VERSION" != "$LATEST_VERSION" ]; then
+              echo "Update needed for $PROJECT_NAME"
+              FILE_PATH=$(echo "$PROJECT_CONFIG" | jq -r '.file_path')
+              REPOSITORY=$(echo "$PROJECT_CONFIG" | jq -r '.repository')
+              PLATFORMS=$(echo "$PROJECT_CONFIG" | jq -r '.platforms')
+
+              # Create JSON object for the project and add to the array
+              UPDATE_OBJ=$(jq -n \
+                --arg file_path "$FILE_PATH" \
+                --arg repository "$REPOSITORY" \
+                --arg tag "$LATEST_VERSION" \
+                --arg platforms "$PLATFORMS" \
+                '{file_path: $file_path, repository: $repository, tag: $tag, platforms: $platforms}')
+              UPDATES_JSON=$(echo "$UPDATES_JSON" | jq --argjson obj "$UPDATE_OBJ" '. + [$obj]')
+            else
+              echo "No update needed for $PROJECT_NAME or failed to get version."
+            fi
+            echo "-------------------------------------"
+          done < <(yq eval '.projects[].project_name' "$CONFIG_FILE")
+
+          echo "Final updates JSON: $UPDATES_JSON"
+          echo "updates_needed=$(echo $UPDATES_JSON | jq -c .)" >> $GITHUB_OUTPUT
+
+  trigger-builds:
+    needs: check-updates
+    if: needs.check-updates.outputs.updates_needed != '[]'
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        project: ${{ fromJson(needs.check-updates.outputs.updates_needed) }}
+    steps:
+      - name: Trigger ${{ matrix.project.repository }} Docker CI workflow
         uses: actions/github-script@v7
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -61,19 +172,20 @@ jobs:
               workflow_id: 'docker-ci.yml',
               ref: 'main',
               inputs: {
-                file_path: '${{ steps.check.outputs.file_path }}',
-                repository: '${{ steps.check.outputs.repository }}',
-                tag: '${{ steps.check.outputs.latest_version }}',
-                platforms: '${{ steps.check.outputs.platforms }}'
+                file_path: '${{ matrix.project.file_path }}',
+                repository: '${{ matrix.project.repository }}',
+                tag: '${{ matrix.project.tag }}',
+                platforms: '${{ matrix.project.platforms }}'
               }
             });
 
   cleanup:
-    needs: check-update
+    needs: trigger-builds
+    if: always() # Run cleanup even if trigger-builds is skipped
     runs-on: ubuntu-latest
     steps:
       - name: Delete workflow runs
         uses: Mattraks/delete-workflow-runs@v2
         with:
           retain_days: 1
-          keep_minimum_runs: 6
+          keep_minimum_runs: 3
