@@ -1,48 +1,47 @@
-# Xray
+# Xray Core Docker Image
 
-[Xray][1] is a platform for building proxies to bypass network restrictions. It secures your network connections and protects your privacy.
+[Xray-core](https://github.com/XTLS/Xray-core) is a platform for building proxies to bypass network restrictions. This Docker image provides a lightweight, secure proxy solution with geolocation data support.
 
-## Pull the Image
+## Features
 
-To fetch the latest release of Xray, use the following command:
+- Based on distroless static image for minimal footprint
+- Includes geoip.dat and geosite.dat for routing rules
+- Multi-architecture support
+- Configurable via JSON configuration files
+- Volume support for custom configurations and logs
 
-```
-$ docker pull jerryin/xray
-```
+## Usage
 
-## Starting a Container
-
-Before starting the container, **ensure you create a configuration file**`/etc/xray/config.json` on the host system. Here's an example of a JSON configuration:
-
-```
-{
-  "inbounds": [{
-    "port": 9000,
-    "protocol": "vmess",
-    "settings": {
-      "clients": [
-        {
-          "id": "1eb6e917-774b-4a84-aff6-b058577c60a5",
-          "level": 1,
-          "alterId": 64
-        }
-      ]
-    }
-  }],
-  "outbounds": [{
-    "protocol": "freedom",
-    "settings": {}
-  }]
-}
+```bash
+docker run -d \
+  --name xray \
+  -p 8080:8080 \
+  -v /path/to/config:/usr/local/etc/xray \
+  jerryin/xray:latest
 ```
 
-For more usage examples of Xray-core, refer to [Xray-examples](https://github.com/XTLS/Xray-examples).
-To start a container running Xray as a server on port `9000`, execute the following command:
+## Configuration
 
-```
-$ docker run -d -p 9000:9000 --name xray --restart=always -v /etc/xray:/etc/xray jerryin/xray
-```
+The image includes default empty configuration files:
 
-**Note**: Ensure the port number in the configuration matches the one opened in your firewall.
+- `00_log.json` - Logging configuration
+- `01_api.json` - API settings
+- `02_dns.json` - DNS configuration
+- `03_routing.json` - Routing rules
+- `04_policy.json` - Policy settings
+- `05_inbounds.json` - Inbound connections
+- `06_outbounds.json` - Outbound connections
+- `07_transport.json` - Transport settings
+- `08_stats.json` - Statistics
+- `09_reverse.json` - Reverse proxy settings
 
-[1]: https://github.com/XTLS/Xray-core
+Mount your custom configuration directory to `/usr/local/etc/xray` to override defaults.
+
+## Volumes
+
+- `/usr/local/etc/xray` - Configuration files
+- `/var/log/xray` - Log files
+
+## Environment Variables
+
+- `TZ` - Timezone (default: Etc/UTC)

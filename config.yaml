@@ -1,15 +1,15 @@
 # Project configuration list
 projects:
   - project_name: Xray
-    repo_latest: teddysun/xray
+    repo_latest: XTLS/Xray-core
     repo_current: jerryin/xray
     version_source:
-      latest: docker_hub
+      latest: github_api
       current: docker_hub
     version_type: semver
     file_path: xray
     repository: xray
-    platforms: linux/amd64,linux/arm64,linux/ppc64le,linux/s390x,linux/386,linux/arm/v7,linux/arm/v6
+    platforms: linux/amd64,linux/arm64,linux/ppc64le,linux/s390x,linux/arm/v7
 
   - project_name: ZeroTier
     repo_latest: zerotier/ZeroTierOne
