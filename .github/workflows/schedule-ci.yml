@@ -23,26 +23,35 @@ jobs:
 
       - name: Check all projects for updates
         id: check
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           CONFIG_FILE="config.yaml"
 
           # --- Shell functions (retry_cmd, get_version) ---
           retry_cmd() {
             local cmd="$1"
-            local retries=3
-            local wait=2
+            local retries=5
+            local base_wait=2
             local count=0
             local result=""
             while [ $count -lt $retries ]; do
-              if result=$(eval "$cmd" 2>/dev/null); then
+              if result=$(eval "$cmd" 2>&1); then  # Capture stderr for error checking
                 if [ -n "$result" ] && [ "$result" != "null" ]; then
                   echo "$result"
                   return 0
                 fi
               fi
               count=$((count + 1))
+              local wait=$((base_wait * (1 << (count - 1))))  # Exponential backoff
+              if echo "$result" | grep -q "429"; then  # Check for rate limit
+                wait=60
+                echo "Rate limit hit, waiting $wait seconds..."
+              fi
+              echo "Retry $count/$retries after $wait seconds..."
               sleep $wait
             done
+            echo "Failed after $retries retries: $result" >&2
             return 1
           }
 
@@ -54,10 +63,10 @@ jobs:
                 git ls-remote --tags --refs "https://github.com/$repo.git" | awk '{print $2}' | sed 's|refs/tags/||' | grep -E '^V?[0-9]+(\.[0-9]+)*$' | sed 's/^[vV]//' | sort -V | tail -n1
                 ;;
               "github_api")
-                curl -s "https://api.github.com/repos/$repo/releases/latest" | jq -r '.tag_name' | grep -oP '\d+(\.\d+)+' | head -1
+                curl -s --header "Authorization: Bearer $GITHUB_TOKEN" --retry 3 --retry-delay 1 --fail --connect-timeout 10 "https://api.github.com/repos/$repo/releases/latest" | jq -r '.tag_name // empty' | grep -oP '\d+(\.\d+)+' | head -1
                 ;;
               "docker_hub")
-                curl -s "https://hub.docker.com/v2/repositories/$repo/tags" | jq -r '.results[].name' | grep -oP '^v?\d+\.\d+(\.\d+)?(-[a-z0-9]+)?$' | sed 's/^v//' | sort -V | tail -n 1
+                curl -s --retry 3 --retry-delay 1 --fail --connect-timeout 10 "https://hub.docker.com/v2/repositories/$repo/tags" | jq -r '.results[].name' | grep -oP '^v?\d+\.\d+(\.\d+)?(-[a-z0-9]+)?$' | sed 's/^v//' | sort -V | tail -n 1
                 ;;
               "acr")
                 skopeo list-tags "docker://$repo" | jq -r '[.Tags[] | select(. != "latest")] | sort_by(. | split(".") | map(tonumber)) | last'
@@ -122,10 +131,10 @@ jobs:
             else
               # Standard single repository version check
               REPO_LATEST=$(echo "$PROJECT_CONFIG" | jq -r '.repo_latest')
-              LATEST_VERSION=$(retry_cmd "get_version \"$SOURCE_LATEST\" \"$REPO_LATEST\"")
+              LATEST_VERSION=$(retry_cmd "get_version \"$SOURCE_LATEST\" \"$REPO_LATEST\"") || { echo "Version check failed for $PROJECT_NAME (latest), skipping."; continue; }
             fi
 
-            CURRENT_VERSION=$(retry_cmd "get_version \"$SOURCE_CURRENT\" \"$REPO_CURRENT\"")
+            CURRENT_VERSION=$(retry_cmd "get_version \"$SOURCE_CURRENT\" \"$REPO_CURRENT\"") || { echo "Version check failed for $PROJECT_NAME (current), skipping."; continue; }
 
             echo "Latest version: $LATEST_VERSION"
             echo "Current version: $CURRENT_VERSION"
