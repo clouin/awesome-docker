@@ -45,14 +45,3 @@ projects:
     file_path: n8n
     repository: n8n
     platforms: linux/amd64,linux/arm64
-
-  - project_name: iPerf
-    repo_latest: esnet/iperf
-    repo_current: jerryin/iperf3
-    version_source:
-      latest: github_api
-      current: docker_hub
-    version_type: semver
-    file_path: iperf3
-    repository: iperf3
-    platforms: linux/amd64,linux/arm64,linux/riscv64,linux/ppc64le,linux/s390x,linux/arm/v7
