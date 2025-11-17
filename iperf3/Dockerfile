@@ -6,7 +6,7 @@ LABEL maintainer="Jerry"
 ARG VERSION=3.19.1
 
 # Install the specified version of iperf3
-RUN apk add --no-cache iperf3=${VERSION}-r0
+RUN apk add --no-cache iperf3=${VERSION}-r1
 
 # Expose the iperf3 port
 EXPOSE 5201/tcp
