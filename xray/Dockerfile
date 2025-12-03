@@ -3,11 +3,11 @@ FROM --platform=$BUILDPLATFORM golang:latest AS build
 
 # Build xray-core
 WORKDIR /src
-ARG VERSION=25.8.31
+ARG VERSION=25.12.2
 RUN git clone --branch v${VERSION} --depth 1 https://github.com/XTLS/Xray-core.git .
 ARG TARGETOS
 ARG TARGETARCH
-RUN GOOS=$TARGETOS GOARCH=$TARGETARCH CGO_ENABLED=0 go build -o xray -trimpath -ldflags "-s -w -buildid=" ./main
+RUN GOOS=$TARGETOS GOARCH=$TARGETARCH CGO_ENABLED=0 go build -o xray -trimpath -buildvcs=false -gcflags="all=-l=4" -ldflags "-s -w -buildid=" ./main
 
 # Download geodat into a staging directory
 ADD https://raw.githubusercontent.com/Loyalsoldier/v2ray-rules-dat/release/geoip.dat /tmp/geodat/geoip.dat
