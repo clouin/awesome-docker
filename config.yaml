@@ -32,16 +32,3 @@ projects:
     file_path: zerotier-moon
     repository: zerotier-moon
     platforms: linux/amd64,linux/arm64
-
-  - project_name: n8n
-    repo_latest:
-      - n8n-io/n8n
-      - other-blowsnow/n8n-i18n-chinese
-    repo_current: jerryin/n8n
-    version_source:
-      latest: github_api
-      current: docker_hub
-    version_type: multi_repo_match
-    file_path: n8n
-    repository: n8n
-    platforms: linux/amd64,linux/arm64
