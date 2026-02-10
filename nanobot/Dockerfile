@@ -4,8 +4,19 @@ FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim AS source
 WORKDIR /app
 
 RUN apt-get update && apt-get install -y --no-install-recommends git
-ARG VERSION=0.1.3.post5
-RUN git clone --branch v${VERSION} --depth 1 https://github.com/HKUDS/nanobot.git /app
+
+ARG VERSION=0.1.3
+
+RUN set -eux; \
+    repo="https://github.com/HKUDS/nanobot.git"; \
+    if git ls-remote --exit-code --tags --refs "$repo" "v${VERSION}" >/dev/null; then \
+      tag="v${VERSION}"; \
+    else \
+      tag="$(git ls-remote --tags --refs --sort=-v:refname "$repo" "v${VERSION}.post*" \
+            | head -n 1 | cut -f2 | sed 's#refs/tags/##')"; \
+      [ -n "$tag" ]; \
+    fi; \
+    git clone --branch "$tag" --depth 1 "$repo" /app
 
 # Step 2: Install dependencies and build the project
 FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim
