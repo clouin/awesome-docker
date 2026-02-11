@@ -32,3 +32,15 @@ projects:
     file_path: zerotier-moon
     repository: zerotier-moon
     platforms: linux/amd64,linux/arm64
+
+  - project_name: New-API
+    repo_latest: QuantumNous/new-api
+    repo_current: jerryin/new-api
+    version_source:
+      latest: github_api
+      current: docker_hub
+      stable_only: true
+    version_type: semver
+    file_path: new-api
+    repository: new-api
+    platforms: linux/amd64,linux/arm64

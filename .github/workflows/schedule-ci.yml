@@ -55,18 +55,59 @@ jobs:
             return 1
           }
 
+          filter_stable_versions() {
+            # Only keep semantic versions (e.g., 0.10.8), filter out pre-release (e.g., 0.10.9-alpha.3)
+            grep -E '^[0-9]+(\.[0-9]+)+$'
+          }
+
           get_version() {
             local source_type="$1"
             local repo="$2"
+            local tag_prefix="$3"
+            local stable_only="$4"
+            local versions=""
             case "$source_type" in
               "git_tags")
-                git ls-remote --tags --refs "https://github.com/$repo.git" | awk '{print $2}' | sed 's|refs/tags/||' | grep -E '^V?[0-9]+(\.[0-9]+)*$' | sed 's/^[vV]//' | sort -V | tail -n1
+                versions=$(git ls-remote --tags --refs "https://github.com/$repo.git" | awk '{print $2}' | sed 's|refs/tags/||' | grep -E '^V?[0-9]+(\.[0-9]+)*(-[a-z0-9]+)?$' | sed 's/^[vV]//' | sort -V)
+                if [ "$stable_only" = "true" ]; then
+                  versions=$(echo "$versions" | filter_stable_versions)
+                fi
+                echo "$versions" | tail -n1
                 ;;
               "github_api")
-                curl -s --header "Authorization: Bearer $GITHUB_TOKEN" --retry 3 --retry-delay 1 --fail --connect-timeout 10 "https://api.github.com/repos/$repo/releases/latest" | jq -r '.tag_name // empty' | grep -oP '\d+(\.\d+)+' | head -1
+                if [ -n "$tag_prefix" ]; then
+                  versions=$(curl -s --header "Authorization: Bearer $GITHUB_TOKEN" --retry 3 --retry-delay 1 --fail --connect-timeout 10 "https://api.github.com/repos/$repo/releases" | jq -r --arg prefix "$tag_prefix" '
+                    [.[].tag_name] |
+                    map(select(startswith($prefix))) |
+                    map(gsub("^" + $prefix; "")) |
+                    sort_by(. | split(".") | map(tonumber? // 0))
+                  ')
+                  if [ "$stable_only" = "true" ]; then
+                    versions=$(echo "$versions" | jq -r 'map(select(test("^[0-9]+(\\.[0-9]+)+$"))) | last // empty')
+                  else
+                    versions=$(echo "$versions" | jq -r 'last // empty')
+                  fi
+                  echo "$versions"
+                else
+                  if [ "$stable_only" = "true" ]; then
+                    # Fetch all releases, filter and get the latest stable version
+                    curl -s --header "Authorization: Bearer $GITHUB_TOKEN" --retry 3 --retry-delay 1 --fail --connect-timeout 10 "https://api.github.com/repos/$repo/releases" | jq -r '
+                      [.[].tag_name] |
+                      map(gsub("^v"; "")) |
+                      map(select(test("^[0-9]+(\\.[0-9]+)+$"))) |
+                      sort_by(. | split(".") | map(tonumber)) |
+                      last // empty
+                    '
+                  else
+                    curl -s --header "Authorization: Bearer $GITHUB_TOKEN" --retry 3 --retry-delay 1 --fail --connect-timeout 10 "https://api.github.com/repos/$repo/releases/latest" | jq -r '.tag_name // empty' | grep -oP '\d+(\.\d+)+' | head -1
+                  fi
+                fi
                 ;;
               "docker_hub")
-                curl -s --retry 3 --retry-delay 1 --fail --connect-timeout 10 "https://hub.docker.com/v2/repositories/$repo/tags" | jq -r '.results[].name' | grep -oP '^v?\d+\.\d+(\.\d+)?(-[a-z0-9]+)?$' | sed 's/^v//' | sort -V | tail -n 1
+                result=$(curl -s --retry 3 --retry-delay 1 --fail --connect-timeout 10 "https://hub.docker.com/v2/repositories/$repo/tags")
+                if [ -n "$result" ] && echo "$result" | jq -e '.results' >/dev/null 2>&1; then
+                  echo "$result" | jq -r '.results[].name' | grep -oP '^v?\d+\.\d+(\.\d+)?(-[a-z0-9]+)?$' | sed 's/^v//' | sort -V | tail -n 1
+                fi
                 ;;
               "acr")
                 skopeo list-tags "docker://$repo" | jq -r '[.Tags[] | select(. != "latest")] | sort_by(. | split(".") | map(tonumber)) | last'
@@ -90,6 +131,10 @@ jobs:
             SOURCE_CURRENT=$(echo "$PROJECT_CONFIG" | jq -r '.version_source.current')
             VERSION_TYPE=$(echo "$PROJECT_CONFIG" | jq -r '.version_type')
 
+            # Extract optional config from version_source
+            TAG_PREFIX=$(echo "$PROJECT_CONFIG" | jq -r '.version_source.tag_prefix // ""')
+            STABLE_ONLY=$(echo "$PROJECT_CONFIG" | jq -r '.version_source.stable_only // "false"')
+
             # Handle different version checking strategies
             if [ "$VERSION_TYPE" = "multi_repo_match" ]; then
               if ! echo "$PROJECT_CONFIG" | jq -e '.repo_latest | type == "array"' >/dev/null; then
@@ -100,7 +145,7 @@ jobs:
               VERSIONS=()
               ALL_VERSIONS_FETCHED=true
               while IFS= read -r repo; do
-                version=$(retry_cmd "get_version \"$SOURCE_LATEST\" \"$repo\"")
+                version=$(retry_cmd "get_version \"$SOURCE_LATEST\" \"$repo\" \"$TAG_PREFIX\" \"$STABLE_ONLY\"")
                 if [ -z "$version" ]; then
                   echo "Error: Failed to get version for repo '$repo' in project '$PROJECT_NAME'"
                   ALL_VERSIONS_FETCHED=false
@@ -131,10 +176,10 @@ jobs:
             else
               # Standard single repository version check
               REPO_LATEST=$(echo "$PROJECT_CONFIG" | jq -r '.repo_latest')
-              LATEST_VERSION=$(retry_cmd "get_version \"$SOURCE_LATEST\" \"$REPO_LATEST\"") || { echo "Version check failed for $PROJECT_NAME (latest), skipping."; continue; }
+              LATEST_VERSION=$(retry_cmd "get_version \"$SOURCE_LATEST\" \"$REPO_LATEST\" \"$TAG_PREFIX\" \"$STABLE_ONLY\"") || { echo "Version check failed for $PROJECT_NAME (latest), skipping."; continue; }
             fi
 
-            CURRENT_VERSION=$(retry_cmd "get_version \"$SOURCE_CURRENT\" \"$REPO_CURRENT\"") || { echo "Version check failed for $PROJECT_NAME (current), skipping."; continue; }
+            CURRENT_VERSION=$(retry_cmd "get_version \"$SOURCE_CURRENT\" \"$REPO_CURRENT\" \"\"") || { echo "Version check failed for $PROJECT_NAME (current), skipping."; continue; }
 
             echo "Latest version: $LATEST_VERSION"
             echo "Current version: $CURRENT_VERSION"
