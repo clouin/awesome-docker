@@ -13,6 +13,7 @@ Welcome to the **Awesome Docker** project! This repository contains a collection
 | [xray][xray]                       | `linux/amd64`, `linux/arm64`, `linux/ppc64le`, `linux/s390x`, `linux/arm/v7`                              | [![Docker Pulls][xray-docker-pulls]][xray-docker]                       |
 | [zerotier][zerotier]               | `linux/amd64`, `linux/arm64`                                                                              | [![Docker Pulls][zerotier-docker-pulls]][zerotier-docker]               |
 | [zerotier-moon][zerotier-moon]     | `linux/amd64`, `linux/arm64`                                                                              | [![Docker Pulls][zerotier-moon-docker-pulls]][zerotier-moon-docker]     |
+| [new-api][new-api]                 | `linux/amd64`, `linux/arm64`                                                                              | [![Docker Pulls][new-api-docker-pulls]][new-api-docker]                 |
 
 ## License
 
@@ -39,4 +40,7 @@ Licensed under the MIT License. See the [LICENSE][license] file for details.
 [zerotier-moon]: ./zerotier-moon/README.md
 [zerotier-moon-docker-pulls]: https://img.shields.io/docker/pulls/jerryin/zerotier-moon
 [zerotier-moon-docker]: https://hub.docker.com/r/jerryin/zerotier-moon
+[new-api]: ./new-api/README.md
+[new-api-docker-pulls]: https://img.shields.io/docker/pulls/jerryin/new-api
+[new-api-docker]: https://hub.docker.com/r/jerryin/new-api
 [license]: ./LICENSE
