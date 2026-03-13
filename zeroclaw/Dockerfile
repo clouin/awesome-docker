@@ -4,7 +4,7 @@
 FROM rust:1.93-slim AS source
 WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends git
-ARG VERSION=0.1.7
+ARG VERSION=0.1.9a
 RUN git clone --branch v${VERSION} --depth 1 https://github.com/zeroclaw-labs/zeroclaw /app
 
 # ── Stage 2: Build ────────────────────────────────────────────
@@ -20,8 +20,8 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     && rm -rf /var/lib/apt/lists/*
 
 # 1. Copy manifests to cache dependencies
-COPY --from=source /app/Cargo.toml /app/Cargo.toml
-COPY --from=source /app/Cargo.lock /app/Cargo.lock
+COPY --from=source /app/Cargo.toml Cargo.toml
+COPY --from=source /app/Cargo.lock Cargo.lock
 COPY --from=source /app/crates/robot-kit/Cargo.toml crates/robot-kit/Cargo.toml
 # Create dummy targets declared in Cargo.toml so manifest parsing succeeds.
 RUN mkdir -p src benches crates/robot-kit/src \
@@ -66,20 +66,20 @@ RUN --mount=type=cache,id=zeroclaw-cargo-registry,target=/usr/local/cargo/regist
 
 # Prepare runtime directory structure and default config inline (no extra stage)
 RUN mkdir -p /zeroclaw-data/.zeroclaw /zeroclaw-data/workspace && \
-    cat > /zeroclaw-data/.zeroclaw/config.toml <<EOF && \
+    printf '%s\n' \
+        'workspace_dir = "/zeroclaw-data/workspace"' \
+        'config_path = "/zeroclaw-data/.zeroclaw/config.toml"' \
+        'api_key = ""' \
+        'default_provider = "openrouter"' \
+        'default_model = "anthropic/claude-sonnet-4-20250514"' \
+        'default_temperature = 0.7' \
+        '' \
+        '[gateway]' \
+        'port = 42617' \
+        'host = "[::]"' \
+        'allow_public_bind = true' \
+        > /zeroclaw-data/.zeroclaw/config.toml && \
     chown -R 65534:65534 /zeroclaw-data
-workspace_dir = "/zeroclaw-data/workspace"
-config_path = "/zeroclaw-data/.zeroclaw/config.toml"
-api_key = ""
-default_provider = "openrouter"
-default_model = "anthropic/claude-sonnet-4-20250514"
-default_temperature = 0.7
-
-[gateway]
-port = 42617
-host = "[::]"
-allow_public_bind = true
-EOF
 
 # ── Stage 2: Development Runtime (Debian) ────────────────────
 FROM debian:trixie-slim AS dev
@@ -98,6 +98,8 @@ COPY --from=source /app/dev/config.template.toml /zeroclaw-data/.zeroclaw/config
 RUN chown 65534:65534 /zeroclaw-data/.zeroclaw/config.toml
 
 # Environment setup
+# Ensure UTF-8 locale so CJK / multibyte input is handled correctly
+ENV LANG=C.UTF-8
 # Use consistent workspace path
 ENV ZEROCLAW_WORKSPACE=/zeroclaw-data/workspace
 ENV HOME=/zeroclaw-data
@@ -122,6 +124,8 @@ COPY --from=builder /app/zeroclaw /usr/local/bin/zeroclaw
 COPY --from=builder /zeroclaw-data /zeroclaw-data
 
 # Environment setup
+# Ensure UTF-8 locale so CJK / multibyte input is handled correctly
+ENV LANG=C.UTF-8
 ENV ZEROCLAW_WORKSPACE=/zeroclaw-data/workspace
 ENV HOME=/zeroclaw-data
 # Default provider and model are set in config.toml, not here,
