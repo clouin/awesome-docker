@@ -5,16 +5,19 @@ WORKDIR /app
 
 RUN apt-get update && apt-get install -y --no-install-recommends git
 
-ARG VERSION=0.1.3
+ARG VERSION=0.1.4
 
 RUN set -eux; \
     repo="https://github.com/HKUDS/nanobot.git"; \
-    if git ls-remote --exit-code --tags --refs "$repo" "v${VERSION}" >/dev/null; then \
-      tag="v${VERSION}"; \
-    else \
-      tag="$(git ls-remote --tags --refs --sort=-v:refname "$repo" "v${VERSION}.post*" \
-            | head -n 1 | cut -f2 | sed 's#refs/tags/##')"; \
-      [ -n "$tag" ]; \
+    tag="$(git ls-remote --tags --refs --sort=-v:refname "$repo" "v${VERSION}.post*" \
+          | head -n 1 | cut -f2 | sed 's#refs/tags/##')" || true; \
+    if [ -z "$tag" ]; then \
+      if git ls-remote --exit-code --tags --refs "$repo" "v${VERSION}" >/dev/null; then \
+        tag="v${VERSION}"; \
+      else \
+        echo "No tag found for v${VERSION} or v${VERSION}.post*"; \
+        exit 1; \
+      fi; \
     fi; \
     git clone --branch "$tag" --depth 1 "$repo" /app
 
