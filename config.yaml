@@ -44,3 +44,14 @@ projects:
     file_path: new-api
     repository: new-api
     platforms: linux/amd64,linux/arm64
+
+  - project_name: NanBot
+    repo_latest: HKUDS/nanobot
+    repo_current: jerryin/nanobot
+    version_source:
+      latest: github_api
+      current: docker_hub
+    version_type: semver
+    file_path: nanobot
+    repository: nanobot
+    platforms: linux/amd64,linux/arm64
