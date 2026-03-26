@@ -8,7 +8,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates
 ARG VERSION=0.10.8
 RUN git clone --branch v${VERSION} --depth 1 https://github.com/QuantumNous/new-api.git /new-api
 
-FROM oven/bun:latest AS builder
+FROM oven/bun:1 AS builder
 
 WORKDIR /build
 COPY --from=source /new-api/web/package.json .
@@ -18,7 +18,7 @@ COPY --from=source /new-api/web .
 COPY --from=source /new-api/VERSION .
 RUN DISABLE_ESLINT_PLUGIN='true' VITE_REACT_APP_VERSION=$(cat VERSION) bun run build
 
-FROM golang:alpine AS builder2
+FROM golang:1.26.1-alpine AS builder2
 ENV GO111MODULE=on CGO_ENABLED=0
 
 ARG TARGETOS
