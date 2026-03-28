@@ -14,198 +14,20 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v6
 
-      - name: Install dependencies
+      - name: Install yq
+        uses: mikefarah/yq@v4.52.4
+
+      - name: Install skopeo
         run: |
           sudo apt-get update
-          sudo apt-get install -y curl jq skopeo
-          sudo curl -L "https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64" -o /usr/bin/yq
-          sudo chmod +x /usr/bin/yq
+          sudo apt-get install -y skopeo
 
       - name: Check all projects for updates
         id: check
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          CONFIG_FILE="config.yaml"
-
-          # --- Shell functions (retry_cmd, get_version) ---
-          retry_cmd() {
-            local cmd="$1"
-            local retries=5
-            local base_wait=2
-            local count=0
-            local result=""
-            while [ $count -lt $retries ]; do
-              if result=$(eval "$cmd" 2>&1); then  # Capture stderr for error checking
-                if [ -n "$result" ] && [ "$result" != "null" ]; then
-                  echo "$result"
-                  return 0
-                fi
-              fi
-              count=$((count + 1))
-              local wait=$((base_wait * (1 << (count - 1))))  # Exponential backoff
-              if echo "$result" | grep -q "429"; then  # Check for rate limit
-                wait=60
-                echo "Rate limit hit, waiting $wait seconds..."
-              fi
-              echo "Retry $count/$retries after $wait seconds..."
-              sleep $wait
-            done
-            echo "Failed after $retries retries: $result" >&2
-            return 1
-          }
-
-          filter_stable_versions() {
-            # Only keep semantic versions (e.g., 0.10.8), filter out pre-release (e.g., 0.10.9-alpha.3)
-            grep -E '^[0-9]+(\.[0-9]+)+$'
-          }
-
-          get_version() {
-            local source_type="$1"
-            local repo="$2"
-            local tag_prefix="$3"
-            local stable_only="$4"
-            local versions=""
-            case "$source_type" in
-              "git_tags")
-                versions=$(git ls-remote --tags --refs "https://github.com/$repo.git" | awk '{print $2}' | sed 's|refs/tags/||' | grep -E '^V?[0-9]+(\.[0-9]+)*(-[a-z0-9]+)?$' | sed 's/^[vV]//' | sort -V)
-                if [ "$stable_only" = "true" ]; then
-                  versions=$(echo "$versions" | filter_stable_versions)
-                fi
-                echo "$versions" | tail -n1
-                ;;
-              "github_api")
-                if [ -n "$tag_prefix" ]; then
-                  versions=$(curl -s --header "Authorization: Bearer $GITHUB_TOKEN" --retry 3 --retry-delay 1 --fail --connect-timeout 10 "https://api.github.com/repos/$repo/releases" | jq -r --arg prefix "$tag_prefix" '
-                    [.[].tag_name] |
-                    map(select(startswith($prefix))) |
-                    map(gsub("^" + $prefix; "")) |
-                    sort_by(. | split(".") | map(tonumber? // 0))
-                  ')
-                  if [ "$stable_only" = "true" ]; then
-                    versions=$(echo "$versions" | jq -r 'map(select(test("^[0-9]+(\\.[0-9]+)+$"))) | last // empty')
-                  else
-                    versions=$(echo "$versions" | jq -r 'last // empty')
-                  fi
-                  echo "$versions"
-                else
-                  if [ "$stable_only" = "true" ]; then
-                    # Fetch all releases, filter and get the latest stable version
-                    curl -s --header "Authorization: Bearer $GITHUB_TOKEN" --retry 3 --retry-delay 1 --fail --connect-timeout 10 "https://api.github.com/repos/$repo/releases" | jq -r '
-                      [.[].tag_name] |
-                      map(gsub("^v"; "")) |
-                      map(select(test("^[0-9]+(\\.[0-9]+)+$"))) |
-                      sort_by(. | split(".") | map(tonumber)) |
-                      last // empty
-                    '
-                  else
-                    curl -s --header "Authorization: Bearer $GITHUB_TOKEN" --retry 3 --retry-delay 1 --fail --connect-timeout 10 "https://api.github.com/repos/$repo/releases/latest" | jq -r '.tag_name // empty' | grep -oP '\d+(\.\d+)+' | head -1
-                  fi
-                fi
-                ;;
-              "docker_hub")
-                result=$(curl -s --retry 3 --retry-delay 1 --fail --connect-timeout 10 "https://hub.docker.com/v2/repositories/$repo/tags")
-                if [ -n "$result" ] && echo "$result" | jq -e '.results' >/dev/null 2>&1; then
-                  echo "$result" | jq -r '.results[].name' | grep -oP '^v?\d+\.\d+(\.\d+)?(-[a-z0-9]+)?$' | sed 's/^v//' | sort -V | tail -n 1
-                fi
-                ;;
-              "acr")
-                skopeo list-tags "docker://$repo" | jq -r '[.Tags[] | select(. != "latest")] | sort_by(. | split(".") | map(tonumber)) | last'
-                ;;
-              *)
-                echo "Unknown source type: $source_type" >&2; return 1
-                ;;
-            esac
-          }
-          # --- End of shell functions ---
-
-          UPDATES_JSON="[]"
-
-          while IFS= read -r PROJECT_NAME; do
-            echo "--- Checking project: $PROJECT_NAME ---"
-            PROJECT_CONFIG=$(yq eval -o=json '.projects[] | select(.project_name == "'"$PROJECT_NAME"'")' "$CONFIG_FILE")
-
-            # Extract config
-            REPO_CURRENT=$(echo "$PROJECT_CONFIG" | jq -r '.repo_current')
-            SOURCE_LATEST=$(echo "$PROJECT_CONFIG" | jq -r '.version_source.latest')
-            SOURCE_CURRENT=$(echo "$PROJECT_CONFIG" | jq -r '.version_source.current')
-            VERSION_TYPE=$(echo "$PROJECT_CONFIG" | jq -r '.version_type')
-
-            # Extract optional config from version_source
-            TAG_PREFIX=$(echo "$PROJECT_CONFIG" | jq -r '.version_source.tag_prefix // ""')
-            STABLE_ONLY=$(echo "$PROJECT_CONFIG" | jq -r '.version_source.stable_only // "false"')
-
-            # Handle different version checking strategies
-            if [ "$VERSION_TYPE" = "multi_repo_match" ]; then
-              if ! echo "$PROJECT_CONFIG" | jq -e '.repo_latest | type == "array"' >/dev/null; then
-                echo "Error: repo_latest must be an array for multi_repo_match in project $PROJECT_NAME"
-                continue # Skip to next project
-              fi
-
-              VERSIONS=()
-              ALL_VERSIONS_FETCHED=true
-              while IFS= read -r repo; do
-                version=$(retry_cmd "get_version \"$SOURCE_LATEST\" \"$repo\" \"$TAG_PREFIX\" \"$STABLE_ONLY\"")
-                if [ -z "$version" ]; then
-                  echo "Error: Failed to get version for repo '$repo' in project '$PROJECT_NAME'"
-                  ALL_VERSIONS_FETCHED=false
-                  break
-                fi
-                VERSIONS+=("$version")
-              done < <(echo "$PROJECT_CONFIG" | jq -r '.repo_latest[]')
-
-              if ! $ALL_VERSIONS_FETCHED; then
-                continue # Skip to the next project
-              fi
-
-              # Check if all versions match
-              FIRST_VERSION="${VERSIONS}"
-              ALL_MATCH=true
-              for ver in "${VERSIONS[@]}"; do
-                if [ "$ver" != "$FIRST_VERSION" ]; then
-                  ALL_MATCH=false
-                  break
-                fi
-              done
-
-              if ! $ALL_MATCH; then
-                echo "Warning: Repository versions do not match for $PROJECT_NAME, skipping."
-                continue # Skip to next project
-              fi
-              LATEST_VERSION="$FIRST_VERSION"
-            else
-              # Standard single repository version check
-              REPO_LATEST=$(echo "$PROJECT_CONFIG" | jq -r '.repo_latest')
-              LATEST_VERSION=$(retry_cmd "get_version \"$SOURCE_LATEST\" \"$REPO_LATEST\" \"$TAG_PREFIX\" \"$STABLE_ONLY\"") || { echo "Version check failed for $PROJECT_NAME (latest), skipping."; continue; }
-            fi
-
-            CURRENT_VERSION=$(retry_cmd "get_version \"$SOURCE_CURRENT\" \"$REPO_CURRENT\" \"\"") || { echo "Version check failed for $PROJECT_NAME (current), skipping."; continue; }
-
-            echo "Latest version: $LATEST_VERSION"
-            echo "Current version: $CURRENT_VERSION"
-
-            if [ -n "$LATEST_VERSION" ] && [ -n "$CURRENT_VERSION" ] && [ "$CURRENT_VERSION" != "$LATEST_VERSION" ]; then
-              echo "Update needed for $PROJECT_NAME"
-              FILE_PATH=$(echo "$PROJECT_CONFIG" | jq -r '.file_path')
-              REPOSITORY=$(echo "$PROJECT_CONFIG" | jq -r '.repository')
-              PLATFORMS=$(echo "$PROJECT_CONFIG" | jq -r '.platforms')
-
-              # Create JSON object for the project and add to the array
-              UPDATE_OBJ=$(jq -n \
-                --arg file_path "$FILE_PATH" \
-                --arg repository "$REPOSITORY" \
-                --arg tag "$LATEST_VERSION" \
-                --arg platforms "$PLATFORMS" \
-                '{file_path: $file_path, repository: $repository, tag: $tag, platforms: $platforms}')
-              UPDATES_JSON=$(echo "$UPDATES_JSON" | jq --argjson obj "$UPDATE_OBJ" '. + [$obj]')
-            else
-              echo "No update needed for $PROJECT_NAME or failed to get version."
-            fi
-            echo "-------------------------------------"
-          done < <(yq eval '.projects[].project_name' "$CONFIG_FILE")
-
-          echo "Final updates JSON: $UPDATES_JSON"
-          echo "updates_needed=$(echo $UPDATES_JSON | jq -c .)" >> $GITHUB_OUTPUT
+          .github/scripts/check-updates.sh
 
   trigger-builds:
     needs: check-updates
@@ -235,7 +57,7 @@ jobs:
 
   cleanup:
     needs: trigger-builds
-    if: always() # Run cleanup even if trigger-builds is skipped
+    if: always()
     runs-on: ubuntu-latest
     steps:
       - name: Delete workflow runs
