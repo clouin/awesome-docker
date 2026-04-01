@@ -71,14 +71,27 @@ get_version() {
             ;;
         "github_api")
             if [ -n "$tag_prefix" ]; then
-                versions=$(curl -s --retry 3 --retry-delay 1 --connect-timeout 10 \
-                    "https://api.github.com/repos/$repo/releases" 2>/dev/null | \
-                    jq -r --arg prefix "$tag_prefix" '
-                        [.[].tag_name] |
-                        map(select(startswith($prefix))) |
-                        map(gsub("^" + $prefix; "")) |
-                        sort_by(. | split(".") | map(tonumber? // 0))
-                    ')
+                # Fetch API response with HTTP status code
+                local api_response
+                api_response=$(curl -s -w "\n%{http_code}" --retry 3 --retry-delay 1 --connect-timeout 10 \
+                    "https://api.github.com/repos/$repo/releases" 2>/dev/null)
+                local http_code
+                http_code=$(echo "$api_response" | tail -n1)
+                local body
+                body=$(echo "$api_response" | sed '$d')
+
+                # Validate response is a JSON array
+                if [ "$http_code" != "200" ] || [ -z "$body" ] || ! echo "$body" | jq -e 'type == "array"' >/dev/null 2>&1; then
+                    log "  Error: GitHub API returned invalid response (HTTP $http_code) for $repo"
+                    return 1
+                fi
+
+                versions=$(echo "$body" | jq -r --arg prefix "$tag_prefix" '
+                    [.[].tag_name] |
+                    map(select(startswith($prefix))) |
+                    map(gsub("^" + $prefix; "")) |
+                    sort_by(. | split(".") | map(tonumber? // 0))
+                ')
                 if [ "$stable_only" = "true" ]; then
                     versions=$(echo "$versions" | jq -r 'map(select(test("^[0-9]+(\\.[0-9]+)+$"))) | last // empty')
                 else
@@ -86,20 +99,38 @@ get_version() {
                 fi
                 echo "$versions"
             else
+                # Determine API endpoint
+                local api_url
                 if [ "$stable_only" = "true" ]; then
-                    curl -s --retry 3 --retry-delay 1 --connect-timeout 10 \
-                        "https://api.github.com/repos/$repo/releases" 2>/dev/null | \
-                        jq -r '
-                            [.[].tag_name] |
-                            map(gsub("^v"; "")) |
-                            map(select(test("^[0-9]+(\\.[0-9]+)+$"))) |
-                            sort_by(. | split(".") | map(tonumber)) |
-                            last // empty
-                        '
+                    api_url="https://api.github.com/repos/$repo/releases"
                 else
-                    curl -s --retry 3 --retry-delay 1 --connect-timeout 10 \
-                        "https://api.github.com/repos/$repo/releases/latest" 2>/dev/null | \
-                        jq -r '.tag_name // empty' | grep -oP '\d+(\.\d+)+' | head -1
+                    api_url="https://api.github.com/repos/$repo/releases/latest"
+                fi
+
+                # Fetch API response with HTTP status code
+                local api_response
+                api_response=$(curl -s -w "\n%{http_code}" --retry 3 --retry-delay 1 --connect-timeout 10 "$api_url" 2>/dev/null)
+                local http_code
+                http_code=$(echo "$api_response" | tail -n1)
+                local body
+                body=$(echo "$api_response" | sed '$d')
+
+                # Validate response
+                if [ "$http_code" != "200" ] || [ -z "$body" ]; then
+                    log "  Error: GitHub API returned invalid response (HTTP $http_code) for $repo"
+                    return 1
+                fi
+
+                if [ "$stable_only" = "true" ]; then
+                    echo "$body" | jq -r '
+                        [.[].tag_name] |
+                        map(gsub("^v"; "")) |
+                        map(select(test("^[0-9]+(\\.[0-9]+)+$"))) |
+                        sort_by(. | split(".") | map(tonumber)) |
+                        last // empty
+                    '
+                else
+                    echo "$body" | jq -r '.tag_name // empty' | grep -oP '\d+(\.\d+)+' | head -1
                 fi
             fi
             ;;
