@@ -3,7 +3,7 @@ FROM --platform=$BUILDPLATFORM golang:latest AS build
 
 # Build xray-core
 WORKDIR /src
-ARG VERSION=25.12.2
+ARG VERSION=26.4.25
 RUN git clone --branch v${VERSION} --depth 1 https://github.com/XTLS/Xray-core.git .
 ARG TARGETOS
 ARG TARGETARCH
@@ -46,8 +46,8 @@ RUN mkdir -p /tmp/var/log/xray && touch \
 FROM gcr.io/distroless/static:nonroot
 
 COPY --from=build --chown=0:0 --chmod=755 /src/xray /usr/local/bin/xray
-COPY --from=build --chown=0:0 --chmod=755 /tmp/empty /usr/local/share/xray
-COPY --from=build --chown=0:0 --chmod=644 /tmp/geodat/*.dat /usr/local/share/xray/
+COPY --from=build --chown=65532:65532 --chmod=755 /tmp/empty /usr/local/share/xray
+COPY --from=build --chown=65532:65532 --chmod=644 /tmp/geodat/*.dat /usr/local/share/xray/
 COPY --from=build --chown=0:0 --chmod=755 /tmp/empty /usr/local/etc/xray
 COPY --from=build --chown=0:0 --chmod=644 /tmp/usr/local/etc/xray/*.json /usr/local/etc/xray/
 COPY --from=build --chown=0:0 --chmod=755 /tmp/empty /var/log/xray
