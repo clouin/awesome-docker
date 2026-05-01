@@ -4,24 +4,20 @@ Welcome to the **Awesome Docker** project! This repository contains a collection
 
 ## Module Overview
 
-| Module                             | Supported Architectures                                                                                   | Docker Pulls                                                            |
-| ---------------------------------- | --------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
-| [cloudflare-warp][cloudflare-warp] | `linux/amd64`, `linux/arm64`                                                                              | [![Docker Pulls][cloudflare-warp-docker-pulls]][cloudflare-warp-docker] |
-| [iperf3][iperf3]                   | `linux/amd64`, `linux/arm64`, `linux/riscv64`, `linux/ppc64le`, `linux/s390x`, `linux/arm/v7`             | [![Docker Pulls][iperf3-docker-pulls]][iperf3-docker]                   |
-| [nanobot][nanobot]                 | `linux/amd64`, `linux/arm64`                                                                              | [![Docker Pulls][nanobot-docker-pulls]][nanobot-docker]                 |
-| [new-api][new-api]                 | `linux/amd64`, `linux/arm64`                                                                              | [![Docker Pulls][new-api-docker-pulls]][new-api-docker]                 |
-| [vlmcsd][vlmcsd]                   | `linux/amd64`, `linux/arm64`, `linux/ppc64le`, `linux/s390x`, `linux/arm/v7`, `linux/arm/v6`, `linux/386` | [![Docker Pulls][vlmcsd-docker-pulls]][vlmcsd-docker]                   |
-| [xray][xray]                       | `linux/amd64`, `linux/arm64`, `linux/ppc64le`, `linux/s390x`, `linux/arm/v7`                              | [![Docker Pulls][xray-docker-pulls]][xray-docker]                       |
-| [zerotier][zerotier]               | `linux/amd64`, `linux/arm64`                                                                              | [![Docker Pulls][zerotier-docker-pulls]][zerotier-docker]               |
-| [zerotier-moon][zerotier-moon]     | `linux/amd64`, `linux/arm64`                                                                              | [![Docker Pulls][zerotier-moon-docker-pulls]][zerotier-moon-docker]     |
+| Module                         | Supported Architectures                                                                                   | Docker Pulls                                                        |
+| ------------------------------ | --------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
+| [iperf3][iperf3]               | `linux/amd64`, `linux/arm64`, `linux/riscv64`, `linux/ppc64le`, `linux/s390x`, `linux/arm/v7`             | [![Docker Pulls][iperf3-docker-pulls]][iperf3-docker]               |
+| [nanobot][nanobot]             | `linux/amd64`, `linux/arm64`                                                                              | [![Docker Pulls][nanobot-docker-pulls]][nanobot-docker]             |
+| [new-api][new-api]             | `linux/amd64`, `linux/arm64`                                                                              | [![Docker Pulls][new-api-docker-pulls]][new-api-docker]             |
+| [vlmcsd][vlmcsd]               | `linux/amd64`, `linux/arm64`, `linux/ppc64le`, `linux/s390x`, `linux/arm/v7`, `linux/arm/v6`, `linux/386` | [![Docker Pulls][vlmcsd-docker-pulls]][vlmcsd-docker]               |
+| [xray][xray]                   | `linux/amd64`, `linux/arm64`, `linux/ppc64le`, `linux/s390x`, `linux/arm/v7`                              | [![Docker Pulls][xray-docker-pulls]][xray-docker]                   |
+| [zerotier][zerotier]           | `linux/amd64`, `linux/arm64`                                                                              | [![Docker Pulls][zerotier-docker-pulls]][zerotier-docker]           |
+| [zerotier-moon][zerotier-moon] | `linux/amd64`, `linux/arm64`                                                                              | [![Docker Pulls][zerotier-moon-docker-pulls]][zerotier-moon-docker] |
 
 ## License
 
 Licensed under the MIT License. See the [LICENSE][license] file for details.
 
-[cloudflare-warp]: ./cloudflare-warp/README.md
-[cloudflare-warp-docker-pulls]: https://img.shields.io/docker/pulls/jerryin/cloudflare-warp
-[cloudflare-warp-docker]: https://hub.docker.com/r/jerryin/cloudflare-warp
 [iperf3]: ./iperf3/README.md
 [iperf3-docker-pulls]: https://img.shields.io/docker/pulls/jerryin/iperf3
 [iperf3-docker]: https://hub.docker.com/r/jerryin/iperf3
