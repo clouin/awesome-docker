@@ -3,7 +3,7 @@ FROM --platform=$BUILDPLATFORM golang:latest AS build
 
 # Build xray-core
 WORKDIR /src
-ARG VERSION=26.4.25
+ARG VERSION=26.5.9
 RUN git clone --branch v${VERSION} --depth 1 https://github.com/XTLS/Xray-core.git .
 ARG TARGETOS
 ARG TARGETARCH
@@ -33,9 +33,12 @@ RUN echo '{}' >/tmp/usr/local/etc/xray/03_routing.json
 RUN echo '{}' >/tmp/usr/local/etc/xray/04_policy.json
 RUN echo '{}' >/tmp/usr/local/etc/xray/05_inbounds.json
 RUN echo '{}' >/tmp/usr/local/etc/xray/06_outbounds.json
-RUN echo '{}' >/tmp/usr/local/etc/xray/07_transport.json
-RUN echo '{}' >/tmp/usr/local/etc/xray/08_stats.json
-RUN echo '{}' >/tmp/usr/local/etc/xray/09_reverse.json
+RUN echo '{}' >/tmp/usr/local/etc/xray/07_stats.json
+RUN echo '{}' >/tmp/usr/local/etc/xray/08_fakedns.json
+RUN echo '{}' >/tmp/usr/local/etc/xray/09_metrics.json
+RUN echo '{}' >/tmp/usr/local/etc/xray/10_observatory.json
+RUN echo '{}' >/tmp/usr/local/etc/xray/11_geodata.json
+RUN echo '{}' >/tmp/usr/local/etc/xray/99_version.json
 
 # Create log files
 RUN mkdir -p /tmp/var/log/xray && touch \
