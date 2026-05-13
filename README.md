@@ -7,6 +7,7 @@ Welcome to the **Awesome Docker** project! This repository contains a collection
 | Module                         | Supported Architectures                                                                                   | Docker Pulls                                                        |
 | ------------------------------ | --------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
 | [iperf3][iperf3]               | `linux/amd64`, `linux/arm64`, `linux/riscv64`, `linux/ppc64le`, `linux/s390x`, `linux/arm/v7`             | [![Docker Pulls][iperf3-docker-pulls]][iperf3-docker]               |
+| [markitdown][markitdown]       | `linux/amd64`, `linux/arm64`                                                                              | [![Docker Pulls][markitdown-docker-pulls]][markitdown-docker]       |
 | [nanobot][nanobot]             | `linux/amd64`, `linux/arm64`                                                                              | [![Docker Pulls][nanobot-docker-pulls]][nanobot-docker]             |
 | [new-api][new-api]             | `linux/amd64`, `linux/arm64`                                                                              | [![Docker Pulls][new-api-docker-pulls]][new-api-docker]             |
 | [vlmcsd][vlmcsd]               | `linux/amd64`, `linux/arm64`, `linux/ppc64le`, `linux/s390x`, `linux/arm/v7`, `linux/arm/v6`, `linux/386` | [![Docker Pulls][vlmcsd-docker-pulls]][vlmcsd-docker]               |
@@ -21,6 +22,9 @@ Licensed under the MIT License. See the [LICENSE][license] file for details.
 [iperf3]: ./iperf3/README.md
 [iperf3-docker-pulls]: https://img.shields.io/docker/pulls/jerryin/iperf3
 [iperf3-docker]: https://hub.docker.com/r/jerryin/iperf3
+[markitdown]: ./markitdown/README.md
+[markitdown-docker-pulls]: https://img.shields.io/docker/pulls/jerryin/markitdown
+[markitdown-docker]: https://hub.docker.com/r/jerryin/markitdown
 [nanobot]: ./nanobot/README.md
 [nanobot-docker-pulls]: https://img.shields.io/docker/pulls/jerryin/nanobot
 [nanobot-docker]: https://hub.docker.com/r/jerryin/nanobot
