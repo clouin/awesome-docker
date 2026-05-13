@@ -55,3 +55,14 @@ projects:
     file_path: nanobot
     repository: nanobot
     platforms: linux/amd64,linux/arm64
+
+  - project_name: MarkItDown
+    repo_latest: microsoft/markitdown
+    repo_current: jerryin/markitdown
+    version_source:
+      latest: github_api
+      current: acr
+    version_type: semver
+    file_path: markitdown
+    repository: markitdown
+    platforms: linux/amd64,linux/arm64
