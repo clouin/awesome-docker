@@ -25,7 +25,7 @@ WORKDIR /build/web
 COPY --from=source /code/web/package.json /code/web/bun.lock ./
 COPY --from=source /code/web/default/package.json ./default/package.json
 COPY --from=source /code/web/classic/package.json ./classic/package.json
-RUN bun install --frozen-lockfile
+RUN bun install --filter ./classic --frozen-lockfile
 COPY --from=source /code/web/classic ./classic
 COPY --from=source /code/VERSION /build/VERSION
 RUN cd classic && VITE_REACT_APP_VERSION=$(cat /build/VERSION) bun run build
