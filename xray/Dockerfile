@@ -3,15 +3,15 @@ FROM --platform=$BUILDPLATFORM golang:latest AS build
 
 # Build xray-core
 WORKDIR /src
-ARG VERSION=26.5.9
+ARG VERSION=26.10.21
 RUN git clone --branch v${VERSION} --depth 1 https://github.com/XTLS/Xray-core.git .
 ARG TARGETOS
 ARG TARGETARCH
 RUN GOOS=$TARGETOS GOARCH=$TARGETARCH CGO_ENABLED=0 go build -o xray -trimpath -buildvcs=false -gcflags="all=-l=4" -ldflags "-s -w -buildid=" ./main
 
 # Download geodat into a staging directory
-ADD https://raw.githubusercontent.com/Loyalsoldier/v2ray-rules-dat/release/geoip.dat /tmp/geodat/geoip.dat
-ADD https://raw.githubusercontent.com/Loyalsoldier/v2ray-rules-dat/release/geosite.dat /tmp/geodat/geosite.dat
+ADD https://raw.githubusercontent.com/XTLS/Xray-rules-dat/release/geoip/geoip-full.dat /tmp/geodat/geoip.dat
+ADD https://raw.githubusercontent.com/XTLS/Xray-rules-dat/release/geosite/geosite-expand.dat /tmp/geodat/geosite.dat
 
 RUN mkdir -p /tmp/empty
 
@@ -38,12 +38,8 @@ RUN echo '{}' >/tmp/usr/local/etc/xray/08_fakedns.json
 RUN echo '{}' >/tmp/usr/local/etc/xray/09_metrics.json
 RUN echo '{}' >/tmp/usr/local/etc/xray/10_observatory.json
 RUN echo '{}' >/tmp/usr/local/etc/xray/11_geodata.json
+RUN echo '{}' >/tmp/usr/local/etc/xray/12_env.json
 RUN echo '{}' >/tmp/usr/local/etc/xray/99_version.json
-
-# Create log files
-RUN mkdir -p /tmp/var/log/xray && touch \
-  /tmp/var/log/xray/access.log \
-  /tmp/var/log/xray/error.log
 
 # Build finally image
 FROM gcr.io/distroless/static:nonroot
@@ -51,10 +47,9 @@ FROM gcr.io/distroless/static:nonroot
 COPY --from=build --chown=0:0 --chmod=755 /src/xray /usr/local/bin/xray
 COPY --from=build --chown=65532:65532 --chmod=755 /tmp/empty /usr/local/share/xray
 COPY --from=build --chown=65532:65532 --chmod=644 /tmp/geodat/*.dat /usr/local/share/xray/
-COPY --from=build --chown=0:0 --chmod=755 /tmp/empty /usr/local/etc/xray
-COPY --from=build --chown=0:0 --chmod=644 /tmp/usr/local/etc/xray/*.json /usr/local/etc/xray/
-COPY --from=build --chown=0:0 --chmod=755 /tmp/empty /var/log/xray
-COPY --from=build --chown=65532:65532 --chmod=600 /tmp/var/log/xray/*.log /var/log/xray/
+COPY --from=build --chown=0:65532 --chmod=750 /tmp/empty /usr/local/etc/xray
+COPY --from=build --chown=0:65532 --chmod=640 /tmp/usr/local/etc/xray/*.json /usr/local/etc/xray/
+COPY --from=build --chown=65532:65532 --chmod=700 /tmp/empty /var/log/xray
 
 VOLUME /usr/local/etc/xray
 VOLUME /var/log/xray
