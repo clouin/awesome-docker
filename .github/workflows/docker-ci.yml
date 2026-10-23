@@ -63,6 +63,8 @@ jobs:
           file: ${{ env.FILE_PATH }}/Dockerfile
           platforms: ${{ env.PLATFORMS }}
           push: ${{ github.event_name != 'pull_request' }}
+          provenance: false
+          sbom: false
           tags: |
             ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.REPOSITORY }}:${{ env.TAG }}
             ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.REPOSITORY }}:latest
